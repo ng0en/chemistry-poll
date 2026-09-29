@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lớp Học Tương Tác</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase v8 (phiên bản dùng qua CDN cho dễ cấu hình 1 file) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
         .box-input { width: 3rem; height: 3rem; font-size: 1.5rem; text-align: center; border: 2px solid #cbd5e1; border-radius: 0.5rem; }
         .box-input:focus { border-color: #3b82f6; outline: none; }
-        .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; color: white; transition: 0.2s;}
+        .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; display: inline-block;}
         .btn-blue { background-color: #3b82f6; } .btn-blue:hover { background-color: #2563eb; }
         .btn-green { background-color: #10b981; } .btn-green:hover { background-color: #059669; }
         .btn-red { background-color: #ef4444; } .btn-red:hover { background-color: #dc2626; }
@@ -20,7 +19,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen font-sans text-gray-800">
 
-    <!-- Màn hình chọn vai trò -->
     <div id="roleSelection" class="flex flex-col items-center justify-center min-h-screen">
         <h1 class="text-3xl font-bold mb-8">Hệ Thống Trả Lời Câu Hỏi</h1>
         <div class="flex gap-4">
@@ -29,7 +27,6 @@
         </div>
     </div>
 
-    <!-- Màn hình Nhập Nickname (Học sinh) -->
     <div id="nicknameScreen" class="hidden flex-col items-center justify-center min-h-screen">
         <div class="bg-white p-8 rounded-lg shadow-md w-96 text-center">
             <h2 class="text-2xl mb-4 font-semibold">Nhập thông tin</h2>
@@ -38,7 +35,6 @@
         </div>
     </div>
 
-    <!-- Màn hình Giáo viên -->
     <div id="teacherView" class="hidden p-6 max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-blue-700">Bảng điều khiển Giáo viên</h2>
@@ -47,13 +43,19 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Đăng câu hỏi</h3>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center text-gray-500 bg-gray-50">
-                    Bấm vào đây và nhấn <b>Ctrl + V</b> để dán ảnh câu hỏi (snipping tool).
+                <h3 class="font-semibold mb-4 text-xl">Đăng câu hỏi</h3>
+                
+                <!-- NÚT TẢI ẢNH LÊN -->
+                <div class="text-center mb-6">
+                    <label class="btn btn-blue w-full cursor-pointer flex justify-center items-center py-4 text-lg">
+                        📁 Nhấn vào đây để chọn ảnh câu hỏi tải lên
+                        <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                    </label>
                 </div>
-                <div class="mt-4 min-h-[200px] border flex items-center justify-center bg-gray-100">
+
+                <div class="mt-4 min-h-[200px] border flex items-center justify-center bg-gray-100 relative rounded">
                     <img id="teacherPreview" src="" alt="Chưa có câu hỏi" class="max-w-full max-h-64 hidden">
-                    <span id="noQuestionLabel" class="text-gray-400">Chưa có câu hỏi</span>
+                    <span id="noQuestionLabel" class="text-gray-400">Chưa có ảnh câu hỏi nào được chọn</span>
                 </div>
             </div>
 
@@ -70,19 +72,17 @@
                 </div>
                 <h3 class="font-semibold mb-2">Đáp án điền số & Tên học sinh:</h3>
                 <ul id="answersList" class="h-64 overflow-y-auto border rounded p-2 bg-gray-50 text-sm">
-                    <!-- Danh sách học sinh trả lời sẽ hiện ở đây -->
                 </ul>
             </div>
         </div>
     </div>
 
-    <!-- Màn hình Học sinh -->
     <div id="studentView" class="hidden p-4 max-w-2xl mx-auto">
         <div class="bg-white p-4 rounded-lg shadow-md mb-6 text-center">
             <h3 class="font-semibold mb-2 text-lg text-blue-800">Câu hỏi hiện tại</h3>
-            <div class="min-h-[150px] border flex items-center justify-center bg-gray-100 mb-2">
+            <div class="min-h-[150px] border flex items-center justify-center bg-gray-100 mb-2 rounded">
                 <img id="studentQuestionImg" src="" alt="Đang chờ giáo viên đưa câu hỏi..." class="max-w-full max-h-64 hidden">
-                <span id="studentWaiting" class="text-gray-500 animate-pulse">Đang chờ giáo viên dán câu hỏi...</span>
+                <span id="studentWaiting" class="text-gray-500 animate-pulse">Đang chờ giáo viên tải câu hỏi lên...</span>
             </div>
         </div>
 
@@ -117,18 +117,16 @@
     </div>
 
     <script>
-        // --- THẦY CẦN THAY THẾ ĐOẠN CONFIG NÀY BẰNG CỦA THẦY (Xem hướng dẫn phần 2) ---
         const firebaseConfig = {
-            apiKey: "DÁN_API_KEY_CỦA_THẦY_VÀO_ĐÂY",
-            authDomain: "ten-project.firebaseapp.com",
-            projectId: "ten-project",
-            storageBucket: "ten-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef"
+            apiKey: "AIzaSyCsxd2I0YEjHdn-WwkA4320I_a7YsoRLgs",
+            authDomain: "chemistry-38062.firebaseapp.com",
+            projectId: "chemistry-38062",
+            storageBucket: "chemistry-38062.firebasestorage.app",
+            messagingSenderId: "625986103785",
+            appId: "1:625986103785:web:fd9e0329b42e0222ce0378",
+            measurementId: "G-8MJMTX0BTE"
         };
-        // -----------------------------------------------------------------------------
 
-        // Khởi tạo Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -146,7 +144,7 @@
                 listenToAnswers();
             } else {
                 document.getElementById('nicknameScreen').classList.remove('hidden');
-                document.getElementById('studentView').classList.remove('flex', 'flex-col'); // Reset if needed
+                document.getElementById('studentView').classList.remove('flex', 'flex-col');
             }
         }
 
@@ -159,7 +157,6 @@
             listenToData();
         }
 
-        // Học sinh gửi đáp án
         function sendAnswer(ans) {
             db.collection("session").doc("current").collection("answers").add({
                 name: myName,
@@ -168,7 +165,6 @@
             }).then(() => showFeedback());
         }
 
-        // Học sinh gửi 4 ô
         function send4BoxAnswer() {
             const v1 = document.getElementById('box1').value;
             const v2 = document.getElementById('box2').value;
@@ -177,7 +173,6 @@
             const finalAns = v1+v2+v3+v4;
             if(finalAns.length === 0) { alert("Chưa nhập gì cả!"); return;}
             sendAnswer(finalAns);
-            // Xóa ô sau khi gửi
             document.getElementById('box1').value = '';
             document.getElementById('box2').value = '';
             document.getElementById('box3').value = '';
@@ -191,29 +186,30 @@
             setTimeout(() => fb.classList.add('hidden'), 2000);
         }
 
-        // Giáo viên: Lắng nghe thao tác dán ảnh (Ctrl+V)
-        document.addEventListener('paste', function (e) {
+        // XỬ LÝ NÚT TẢI ẢNH LÊN
+        function handleFileUpload(event) {
             if (myRole !== 'teacher') return;
-            const items = e.clipboardData.items;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    const blob = items[i].getAsFile();
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const base64Data = event.target.result;
-                        // Lưu ảnh lên Firestore
-                        db.collection("session").doc("current").set({
-                            image: base64Data
-                        });
-                        // Reset lại câu trả lời cũ
-                        deleteAnswers();
-                    };
-                    reader.readAsDataURL(blob);
-                }
-            }
-        });
+            const file = event.target.files[0];
+            if (!file) return;
 
-        // Xóa toàn bộ câu trả lời cũ
+            if (!file.type.startsWith('image/')) {
+                alert("Vui lòng chỉ chọn file hình ảnh!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result;
+                db.collection("session").doc("current").set({
+                    image: base64Data
+                });
+                deleteAnswers();
+            };
+            reader.readAsDataURL(file);
+            
+            event.target.value = '';
+        }
+
         function deleteAnswers() {
             db.collection("session").doc("current").collection("answers").get().then(snapshot => {
                 snapshot.forEach(doc => { doc.ref.delete(); });
@@ -227,7 +223,6 @@
             }
         }
 
-        // Lắng nghe sự thay đổi của ảnh câu hỏi (cả GV và HS đều cần)
         function listenToData() {
             db.collection("session").doc("current").onSnapshot((doc) => {
                 if (doc.exists) {
@@ -243,7 +238,6 @@
                             document.getElementById('studentWaiting').classList.add('hidden');
                         }
                     } else {
-                        // Reset image
                         if(myRole === 'teacher') {
                             document.getElementById('teacherPreview').src = '';
                             document.getElementById('teacherPreview').classList.add('hidden');
@@ -258,7 +252,6 @@
             });
         }
 
-        // Giáo viên: Lắng nghe và thống kê đáp án
         function listenToAnswers() {
             db.collection("session").doc("current").collection("answers").onSnapshot((snapshot) => {
                 let counts = { A: 0, B: 0, C: 0, D: 0, 'Đúng': 0, 'Sai': 0 };
@@ -270,7 +263,6 @@
                     if (counts[ans] !== undefined) {
                         counts[ans]++;
                     }
-                    // Đưa vào list chi tiết luôn
                     otherAnswersHTML += `<li class="border-b py-1"><b>${data.name}</b>: <span class="text-blue-600 font-mono">${ans}</span></li>`;
                 });
 
