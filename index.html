@@ -45,7 +45,6 @@
             <div class="bg-white p-6 rounded-lg shadow-md">
                 <h3 class="font-semibold mb-4 text-xl">Đăng câu hỏi</h3>
                 
-                <!-- NÚT TẢI ẢNH LÊN -->
                 <div class="text-center mb-6">
                     <label class="btn btn-blue w-full cursor-pointer flex justify-center items-center py-4 text-lg">
                         📁 Nhấn vào đây để chọn ảnh câu hỏi tải lên
@@ -87,32 +86,42 @@
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow-md text-center">
-            <p class="mb-4 text-gray-600">Chọn 1 trong các cách trả lời dưới đây phù hợp với câu hỏi:</p>
             
-            <div class="flex justify-center gap-2 mb-6">
-                <button onclick="sendAnswer('A')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">A</button>
-                <button onclick="sendAnswer('B')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">B</button>
-                <button onclick="sendAnswer('C')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">C</button>
-                <button onclick="sendAnswer('D')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">D</button>
-            </div>
-
-            <div class="flex justify-center gap-4 mb-6">
-                <button onclick="sendAnswer('Đúng')" class="btn btn-green w-32">Đúng</button>
-                <button onclick="sendAnswer('Sai')" class="btn btn-red w-32">Sai</button>
-            </div>
-
-            <div class="border-t pt-4">
-                <p class="mb-2 text-sm text-gray-500">Hoặc điền đáp án 4 ký tự:</p>
-                <div class="flex justify-center gap-2 mb-4">
-                    <input type="text" maxlength="1" id="box1" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box2').focus()">
-                    <input type="text" maxlength="1" id="box2" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box3').focus()">
-                    <input type="text" maxlength="1" id="box3" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box4').focus()">
-                    <input type="text" maxlength="1" id="box4" class="box-input">
+            <!-- Khu vực các nút bấm (sẽ bị ẩn khi đã trả lời) -->
+            <div id="answerControls">
+                <p class="mb-4 text-gray-600">Chọn 1 trong các cách trả lời dưới đây phù hợp với câu hỏi:</p>
+                
+                <div class="flex justify-center gap-2 mb-6">
+                    <button onclick="sendAnswer('A')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">A</button>
+                    <button onclick="sendAnswer('B')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">B</button>
+                    <button onclick="sendAnswer('C')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">C</button>
+                    <button onclick="sendAnswer('D')" class="btn btn-blue w-12 h-12 flex items-center justify-center text-xl">D</button>
                 </div>
-                <button onclick="send4BoxAnswer()" class="btn btn-gray w-full">Gửi đáp án 4 ô</button>
+
+                <div class="flex justify-center gap-4 mb-6">
+                    <button onclick="sendAnswer('Đúng')" class="btn btn-green w-32">Đúng</button>
+                    <button onclick="sendAnswer('Sai')" class="btn btn-red w-32">Sai</button>
+                </div>
+
+                <div class="border-t pt-4">
+                    <p class="mb-2 text-sm text-gray-500">Hoặc điền đáp án 4 ký tự:</p>
+                    <div class="flex justify-center gap-2 mb-4">
+                        <input type="text" maxlength="1" id="box1" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box2').focus()">
+                        <input type="text" maxlength="1" id="box2" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box3').focus()">
+                        <input type="text" maxlength="1" id="box3" class="box-input" onkeyup="if(this.value.length==1) document.getElementById('box4').focus()">
+                        <input type="text" maxlength="1" id="box4" class="box-input">
+                    </div>
+                    <button onclick="send4BoxAnswer()" class="btn btn-gray w-full">Gửi đáp án 4 ô</button>
+                </div>
             </div>
             
-            <div id="feedback" class="mt-4 text-green-600 font-bold hidden">Đã gửi đáp án thành công!</div>
+            <!-- Giao diện hiển thị sau khi đã trả lời (mặc định ẩn) -->
+            <div id="lockedState" class="hidden mt-4 py-8 bg-green-50 rounded-lg border border-green-200">
+                <div class="text-green-600 font-bold text-xl mb-2">Đã gửi đáp án thành công!</div>
+                <div id="studentAnswerText" class="text-3xl font-mono text-blue-700 font-bold mb-4"></div>
+                <div class="text-gray-500 text-sm animate-pulse">Vui lòng đợi câu hỏi tiếp theo...</div>
+            </div>
+
         </div>
     </div>
 
@@ -134,6 +143,7 @@
 
         let myRole = '';
         let myName = '';
+        let currentQuestionId = null;
 
         function selectRole(role) {
             myRole = role;
@@ -162,7 +172,9 @@
                 name: myName,
                 answer: ans,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => showFeedback());
+            }).then(() => {
+                lockAnswers(ans);
+            });
         }
 
         function send4BoxAnswer() {
@@ -173,20 +185,25 @@
             const finalAns = v1+v2+v3+v4;
             if(finalAns.length === 0) { alert("Chưa nhập gì cả!"); return;}
             sendAnswer(finalAns);
+        }
+
+        // Khóa màn hình học sinh sau khi trả lời
+        function lockAnswers(ans) {
+            document.getElementById('answerControls').classList.add('hidden');
+            document.getElementById('lockedState').classList.remove('hidden');
+            document.getElementById('studentAnswerText').innerText = ans;
+        }
+
+        // Mở khóa lại màn hình khi có câu hỏi mới
+        function unlockAnswers() {
+            document.getElementById('answerControls').classList.remove('hidden');
+            document.getElementById('lockedState').classList.add('hidden');
             document.getElementById('box1').value = '';
             document.getElementById('box2').value = '';
             document.getElementById('box3').value = '';
             document.getElementById('box4').value = '';
-            document.getElementById('box1').focus();
         }
 
-        function showFeedback() {
-            const fb = document.getElementById('feedback');
-            fb.classList.remove('hidden');
-            setTimeout(() => fb.classList.add('hidden'), 2000);
-        }
-
-        // XỬ LÝ NÚT TẢI ẢNH LÊN
         function handleFileUpload(event) {
             if (myRole !== 'teacher') return;
             const file = event.target.files[0];
@@ -200,13 +217,14 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const base64Data = e.target.result;
+                // Cập nhật ảnh kèm theo một ID thời gian để nhận diện câu hỏi mới
                 db.collection("session").doc("current").set({
-                    image: base64Data
+                    image: base64Data,
+                    questionId: Date.now() 
                 });
                 deleteAnswers();
             };
             reader.readAsDataURL(file);
-            
             event.target.value = '';
         }
 
@@ -218,7 +236,7 @@
 
         function resetData() {
             if(confirm("Bạn muốn xóa câu hỏi và kết quả hiện tại?")) {
-                db.collection("session").doc("current").set({ image: "" });
+                db.collection("session").doc("current").set({ image: "", questionId: 0 });
                 deleteAnswers();
             }
         }
@@ -227,6 +245,13 @@
             db.collection("session").doc("current").onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
+                    
+                    // Kiểm tra nếu có câu hỏi mới hoặc giáo viên vừa bấm reset -> Mở khóa nút bấm
+                    if (data.questionId !== currentQuestionId) {
+                        currentQuestionId = data.questionId;
+                        unlockAnswers();
+                    }
+
                     if (data.image) {
                         if(myRole === 'teacher') {
                             document.getElementById('teacherPreview').src = data.image;
